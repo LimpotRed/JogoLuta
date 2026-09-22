@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141512">
+  <title>Rua 99 | Luta de rua</title>
+  <style>
+    :root { color-scheme: dark; --bg:#141512; --panel:#1d1f1a; --line:#34372e; --muted:#999d90; --text:#f0f1e8; --lime:#d5f76c; --coral:#fa846d; }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:Arial,Helvetica,sans-serif; font-size:14px; letter-spacing:0; }
+    button,select { font:inherit; }
+    button { cursor:pointer; color:inherit; -webkit-tap-highlight-color:transparent; }
+    button:focus-visible,select:focus-visible { outline:2px solid var(--lime); outline-offset:5px; }
+    button:disabled { cursor:not-allowed; opacity:.42; }
+    button img { width:19px; height:19px; pointer-events:none; filter:invert(94%) sepia(9%) saturate(186%); }
+    button { touch-action:manipulation; }
+    .shell { max-width:1328px; margin:0 auto; padding:0 40px; }
+    .topbar { height:94px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    .brand { display:flex; align-items:center; gap:15px; }
+    .brand-name { font-family:Impact,'Arial Black',sans-serif; font-style:italic; font-size:42px; line-height:1; white-space:nowrap; }
+    .brand-name span { color:var(--lime); }
+    .brand-rule { height:30px; width:1px; background:var(--line); }
+    .brand-caption { color:var(--muted); font-family:monospace; font-size:10px; line-height:1.7; }
+    .header-actions { display:flex; align-items:center; gap:9px; }
+    .online { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11px; margin-right:17px; }
+    .online::before { content:''; width:6px; height:6px; background:var(--lime); border-radius:50%; }
+    .icon-button { display:inline-flex; align-items:center; justify-content:center; background:transparent; border:1px solid var(--line); width:38px; height:38px; border-radius:4px; flex:none; }
+    .icon-button:hover { background:#2b2e25; border-color:#666d57; }
+    .arena-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:27px 0 21px; }
+    .mode-line { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+    .eyebrow { font:10px monospace; text-transform:uppercase; color:var(--muted); }
+    .mode-dot { width:5px; height:5px; background:var(--lime); }
+    h1 { margin:0; font-size:24px; font-weight:700; }
+    h1 span { font-weight:400; color:#696f60; margin:0 7px; }
+    .difficulty { display:flex; align-items:center; gap:15px; }
+    .difficulty label { color:var(--muted); font-size:11px; }
+    select { border:1px solid var(--line); background:var(--panel); padding:10px 13px; color:var(--text); border-radius:4px; min-width:112px; }
+    .game { position:relative; width:100%; aspect-ratio:1280/650; overflow:hidden; background:#4f666b; isolation:isolate; }
+    .shell:fullscreen { max-width:none; width:100vw; height:100dvh; padding:0 16px; background:var(--bg); display:flex; flex-direction:column; }
+    .shell:fullscreen .topbar { height:60px; flex-shrink:0; }
+    .shell:fullscreen main { flex:1; min-height:0; display:flex; flex-direction:column; }
+    .shell:fullscreen main > section:first-child { flex:1; min-height:0; display:flex; flex-direction:column; }
+    .shell:fullscreen .game { flex:1; min-height:0; aspect-ratio:auto; }
+    .shell:fullscreen .control-deck { flex-shrink:0; }
+    .shell:fullscreen .arena-heading,.shell:fullscreen .below,.shell:fullscreen footer { display:none; }
+    canvas { display:block; width:100%; height:100%; image-rendering:pixelated; }
+    .scanlines { position:absolute; inset:0; pointer-events:none; opacity:.06; background:repeating-linear-gradient(0deg,transparent 0px,transparent 3px,#000 3px,#000 4px); }
+    .hud { position:absolute; top:25px; left:30px; right:30px; display:grid; grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr); gap:19px; pointer-events:none; }
+    .fighter-meta { display:flex; align-items:flex-end; justify-content:space-between; gap:8px; text-shadow:0 2px 3px #182224; margin-bottom:8px; }
+    .fighter-meta strong { font-family:Impact,'Arial Black',sans-serif; font-size:28px; font-style:italic; line-height:1; }
+    .fighter-meta small { font:10px monospace; color:#e3e9e2; }
+    .health { height:19px; background:#242c2be6; border:3px solid #1b2527; position:relative; overflow:hidden; box-shadow:0 1px 0 #ffffff20; }
+    .health-fill,.health-lag { position:absolute; inset:0; transform-origin:left; background:var(--lime); transition:transform .12s linear; }
+    .health-lag { background:#fff8dc; transition:transform .5s .2s; }
+    .enemy .health-fill { background:var(--coral); }
+    .enemy .health-fill,.enemy .health-lag { transform-origin:right; }
+    .health::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent,transparent calc(10% - 2px),#17272040 calc(10% - 2px),#17272040 10%); }
+    .fighter-bottom { display:flex; align-items:center; justify-content:space-between; margin-top:8px; font:10px monospace; color:#e8ede0; text-shadow:0 1px 2px #111; }
+    .round-dots { display:flex; gap:5px; }
+    .round-dots i { display:block; width:10px; height:10px; border:1px solid #d5e1ce80; background:#26302c; transform:skew(-12deg); }
+    .round-dots i.won { border-color:var(--lime); background:var(--lime); }
+    .enemy .round-dots i.won { border-color:var(--coral); background:var(--coral); }
+    .timer-wrap { text-align:center; }
+    .timer { display:block; font:45px/1 Impact,'Arial Black',sans-serif; color:#f6f3df; text-shadow:3px 3px 0 #293230; }
+    .round-label { font:9px monospace; display:block; margin-top:7px; color:#e2e4d5; text-shadow:1px 1px #222; }
+    .corner-label { position:absolute; bottom:17px; font:9px monospace; color:#e2e7d1a8; text-shadow:1px 1px #111; }
+    .corner-label.left { left:25px; }
+    .corner-label.right { right:25px; }
+    .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 15px 35px; text-align:center; background:#101b1b26; }
+    .overlay.result,.overlay.paused { background:#101714c9; backdrop-filter:blur(3px); }
+    .overlay-kicker { font:11px monospace; color:#fff6e6; text-shadow:1px 2px 0 #192721; margin:0 0 10px; }
+    .overlay h2 { font:italic 64px/1 Impact,'Arial Black',sans-serif; text-shadow:4px 5px 0 #182a2b; margin:0 0 19px; color:#f5f0dc; }
+    .overlay h2.lime { color:var(--lime); }
+    .primary { display:inline-flex; gap:13px; align-items:center; justify-content:center; border:0; background:var(--lime); color:#1d2714; padding:13px 24px; min-height:44px; border-radius:3px; font-weight:700; box-shadow:0 4px 0 #151b1470; }
+    .primary img { filter:none; }
+    .primary:hover { background:#e1ff89; transform:translateY(-1px); }
+    .overlay-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+    .secondary { background:#242b24; border:1px solid #748165; box-shadow:none; color:var(--text); }
+    .secondary:hover { background:#353f30; }
+    .announcement { position:absolute; inset:36% 0 auto; text-align:center; color:var(--lime); font:italic 78px/1 Impact,'Arial Black',sans-serif; text-shadow:5px 5px 0 #1b2822; pointer-events:none; }
+    .control-deck { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:17px 20px; background:#20221d; border-bottom:1px solid var(--line); }
+    .movement,.attack-controls,.utility { display:flex; align-items:center; gap:7px; }
+    .control { display:inline-flex; align-items:center; justify-content:center; gap:9px; height:44px; min-width:46px; padding:0 15px; border:1px solid #464a3c; border-bottom:3px solid #464a3c; background:#2c3026; border-radius:4px; user-select:none; touch-action:none; font-size:12px; font-weight:600; }
+    .control:hover { background:#373d2e; }
+    .control.pressed,.control:active { background:#515c36; border-color:var(--lime); transform:translateY(1px); }
+    .control.guard { margin-left:8px; }
+    .control.special { border-color:#758a44; color:var(--lime); background:#333d23; }
+    .control.special img { filter:invert(85%) sepia(69%) saturate(412%) hue-rotate(25deg); }
+    .control.special.ready { border-color:var(--lime); box-shadow:inset 0 0 16px #d5f76c18; }
+    .energy-section { min-width:145px; flex:1; max-width:215px; padding:0 10px; }
+    .energy-label { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; font:9px monospace; color:var(--muted); }
+    .energy-meter { height:5px; background:#3b4132; }
+    .energy-fill { width:0; height:100%; background:var(--lime); transition:width .2s; }
+    .utility { margin-left:7px; padding-left:16px; border-left:1px solid var(--line); }
+    .utility .icon-button { border:0; width:31px; }
+    .below { display:grid; grid-template-columns:1fr 1fr 1fr; padding:25px 0; gap:32px; }
+    .info-block { min-width:0; display:flex; gap:14px; align-items:center; }
+    .info-block + .info-block { border-left:1px solid var(--line); padding-left:32px; }
+    .avatar { width:53px; height:53px; flex:none; background:#2d3926; border:1px solid #495438; image-rendering:pixelated; }
+    .info-block .eyebrow { display:block; margin-bottom:8px; }
+    .fighter-name { font-weight:bold; font-size:16px; }
+    .fighter-name span { color:var(--lime); font:10px monospace; margin-left:8px; }
+    .fighter-sub { color:var(--muted); font-size:11px; margin:5px 0 0; }
+    .score { display:flex; gap:24px; align-items:center; }
+    .score-item { display:flex; gap:8px; align-items:baseline; }
+    .score-item strong { font:24px Impact,'Arial Black',sans-serif; }
+    .score-item span { font-size:10px; color:var(--muted); }
+    .record { display:flex; gap:12px; align-items:baseline; }
+    .record strong { font:24px Impact,'Arial Black',sans-serif; color:var(--lime); }
+    .record span { color:var(--muted); font-size:11px; }
+    footer { border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:15px; padding:18px 0 25px; color:#777e6c; font:9px monospace; }
+    footer b { font-weight:400; color:var(--lime); }
+    .status-dot { display:inline-block; width:5px; height:5px; background:var(--lime); margin-right:6px; }
+    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+    @media(min-width:1600px) { .shell { max-width:1500px; } }
+    @media(max-width:900px) {
+      .shell { padding:0 22px; } .topbar { height:80px; } .hud { top:17px; left:20px; right:20px; gap:13px; grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr); }
+      .fighter-meta strong { font-size:23px; } .timer { font-size:37px; } .control-deck { padding:13px 12px; gap:10px; flex-wrap:wrap; }
+      .energy-section { order:3; max-width:none; min-width:0; flex-basis:100%; padding:0; } .energy-label { margin-bottom:5px; } .utility { margin-left:0; padding-left:7px; }
+      .control { padding:0 11px; } .below { gap:18px; } .info-block + .info-block { padding-left:18px; } .score { gap:14px; }
+      .overlay h2 { font-size:50px; } .announcement { font-size:60px; }
+    }
+    @media(max-width:600px) {
+      .shell { padding:0 14px; } .topbar { height:71px; } .brand-name { font-size:34px; } .brand-caption,.brand-rule,.online { display:none; }
+      .header-actions { gap:6px; } .icon-button { width:34px; height:34px; } .arena-heading { padding:21px 0 17px; gap:8px; } h1 { font-size:18px; } .mode-line { margin-bottom:7px; } .eyebrow { font-size:9px; }
+      .difficulty { gap:0; } .difficulty label { display:none; } select { min-width:93px; padding:9px 10px; font-size:11px; }
+      .game { aspect-ratio:1/1; } canvas { object-fit:cover; } .hud { top:14px; left:12px; right:12px; gap:8px; grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr); }
+      .fighter-meta strong { font-size:22px; } .fighter-meta small { font-size:8px; } .health { height:14px; border-width:2px; } .timer { font-size:32px; } .round-label { font-size:8px; } .fighter-bottom { font-size:8px; }
+      .round-dots i { width:8px; height:8px; } .overlay { padding:30px 12px 75px; } .overlay h2 { font-size:48px; } .overlay-kicker { font-size:10px; }
+      .primary { padding:12px 19px; font-size:12px; } .announcement { font-size:50px; } .corner-label { font-size:8px; bottom:12px; } .corner-label.left { left:12px; } .corner-label.right { right:12px; }
+      .control-deck { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'movement attacks' 'energy utility'; gap:12px 7px; padding:12px 9px; } .movement { grid-area:movement; gap:5px; } .control { width:38px; min-width:38px; height:43px; padding:0; } .control.guard { margin-left:0; }
+      .attack-controls { grid-area:attacks; gap:5px; } .attack-controls .control { width:43px; } .control span { display:none; } .utility { grid-area:utility; padding-left:0; margin-left:0; border:0; justify-content:flex-end; height:26px; }
+      .utility .icon-button { height:26px; width:30px; } .energy-section { grid-area:energy; order:0; min-width:0; width:100%; margin:0; } .energy-label { font-size:8px; }
+      .below { padding:21px 0; gap:19px 12px; grid-template-columns:1fr 1fr; } .info-block { gap:10px; } .info-block + .info-block { padding-left:15px; } .info-block:last-child { grid-column:1/-1; border-left:0; border-top:1px solid var(--line); padding:16px 0 0; }
+      .info-block:last-child > div { display:flex; align-items:center; justify-content:space-between; width:100%; } .info-block:last-child .eyebrow { margin:0; } .avatar { width:44px; height:44px; } .fighter-name { font-size:14px; } .fighter-name span { font-size:9px; margin-left:4px; } .fighter-sub { font-size:10px; }
+      .score { gap:15px; } .score-item { flex-direction:column; gap:2px; } .score-item strong { font-size:22px; } .score-item span { font-size:9px; } .record strong { font-size:21px; } footer { font-size:8px; padding-top:15px; }
+    }
+    @media(max-width:350px) { .shell { padding:0 9px; } .control { min-width:34px; width:34px; } .attack-controls .control { width:37px; } h1 { font-size:16px; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; } }
+  </style>
+</head>
+<body>
+  <div class="shell" id="app">
+    <header class="topbar">
+      <div class="brand" aria-label="Rua 99">
+        <div class="brand-name">RUA <span>99</span></div>
+        <div class="brand-rule"></div>
+        <div class="brand-caption">CLUBE DE LUTA<br>DISTRITO CENTRAL</div>
+      </div>
+      <div class="header-actions">
+        <span class="online">1 JOGADOR</span>
+        <button id="sound" class="icon-button" type="button" title="Ativar som (M)" aria-label="Ativar som" aria-pressed="false"><img src="assets/icons/volume-x.svg" alt=""></button>
+        <button id="fullscreen" class="icon-button" type="button" title="Tela cheia (F)" aria-label="Tela cheia"><img src="assets/icons/maximize.svg" alt=""></button>
+      </div>
+    </header>
+    <main>
+      <section aria-label="Luta arcade">
+        <div class="arena-heading">
+          <div><div class="mode-line"><span class="mode-dot"></span><span class="eyebrow">MODO ARCADE</span></div><h1>Distrito Central <span>/</span> 01</h1></div>
+          <div class="difficulty"><label for="difficulty">Dificuldade</label><select id="difficulty" aria-label="Dificuldade"><option value="easy">Tranquilo</option><option value="normal" selected>Normal</option><option value="hard">Intenso</option></select></div>
+        </div>
+        <div class="game" id="game">
+          <canvas id="arena" width="1280" height="650" aria-label="Arena de luta. Kai contra Rex." role="img"></canvas>
+          <div class="scanlines"></div>
+          <div class="hud">
+            <div class="fighter-hud">
+              <div class="fighter-meta"><strong>KAI</strong><small>JOGADOR 01</small></div>
+              <div class="health" role="progressbar" aria-label="Vida de Kai" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" id="player-health"><div class="health-lag"></div><div class="health-fill"></div></div>
+              <div class="fighter-bottom"><div class="round-dots" id="player-rounds"><i></i><i></i></div><span id="player-hp">100 / 100</span></div>
+            </div>
+            <div class="timer-wrap"><span class="timer" id="timer">60</span><span class="round-label" id="round-label">ROUND 01</span></div>
+            <div class="fighter-hud enemy">
+              <div class="fighter-meta"><small>CPU</small><strong>REX</strong></div>
+              <div class="health" role="progressbar" aria-label="Vida de Rex" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" id="enemy-health"><div class="health-lag"></div><div class="health-fill"></div></div>
+              <div class="fighter-bottom"><span id="enemy-hp">100 / 100</span><div class="round-dots" id="enemy-rounds"><i></i><i></i></div></div>
+            </div>
+          </div>
+          <div class="corner-label left">CENTRO / 18:42</div><div class="corner-label right">MELHOR DE 3</div>
+          <div class="overlay" id="overlay">
+            <p class="overlay-kicker" id="overlay-kicker">KAI VS. REX</p>
+            <h2 id="overlay-title">ROUND 01</h2>
+            <div class="overlay-actions"><button type="button" id="main-action" class="primary">Lutar <img src="assets/icons/arrow-right.svg" alt=""></button><button type="button" id="cancel-action" class="primary secondary" hidden>Continuar</button></div>
+          </div>
+          <div class="announcement" id="announcement" aria-hidden="true" hidden></div>
+          <p class="sr-only" aria-live="polite" id="live-status">Partida pronta.</p>
+        </div>
+        <div class="control-deck" aria-label="Controles da luta">
+          <div class="movement">
+            <button type="button" class="control" data-control="left" title="Esquerda (A ou seta esquerda)" aria-label="Mover para esquerda"><img src="assets/icons/arrow-left.svg" alt=""></button>
+            <button type="button" class="control" data-control="jump" title="Pular (W, seta para cima ou espaco)" aria-label="Pular"><img src="assets/icons/arrow-up.svg" alt=""></button>
+            <button type="button" class="control" data-control="right" title="Direita (D ou seta direita)" aria-label="Mover para direita"><img src="assets/icons/arrow-right.svg" alt=""></button>
+            <button type="button" class="control guard" data-control="block" title="Defender (S ou seta para baixo)" aria-label="Defender"><img src="assets/icons/shield.svg" alt=""></button>
+          </div>
+          <div class="energy-section"><div class="energy-label"><span>ENERGIA</span><span id="energy-value">40%</span></div><div class="energy-meter" id="energy-meter" role="progressbar" aria-label="Energia do especial" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"><div class="energy-fill" id="energy-fill"></div></div></div>
+          <div class="attack-controls">
+            <button type="button" class="control" data-control="punch" title="Soco (J)" aria-label="Soco"><img src="assets/icons/swords.svg" alt=""><span>Soco</span></button>
+            <button type="button" class="control" data-control="kick" title="Chute (K)" aria-label="Chute"><img src="assets/icons/move-up-right.svg" alt=""><span>Chute</span></button>
+            <button type="button" class="control special" data-control="special" title="Especial (L) - 60 de energia" aria-label="Especial"><img src="assets/icons/zap.svg" alt=""><span>Especial</span></button>
+          </div>
+          <div class="utility"><button type="button" class="icon-button" id="pause" title="Pausar (P ou Esc)" aria-label="Pausar"><img src="assets/icons/pause.svg" alt=""></button><button type="button" class="icon-button" id="restart" title="Reiniciar partida (R)" aria-label="Reiniciar partida"><img src="assets/icons/rotate-ccw.svg" alt=""></button></div>
+        </div>
+      </section>
+      <section class="below" aria-label="Estatisticas">
+        <div class="info-block"><canvas id="portrait" class="avatar" width="64" height="64" role="img" aria-label="Retrato de Kai"></canvas><div><span class="eyebrow">SEU LUTADOR</span><div class="fighter-name">KAI <span>01</span></div><p class="fighter-sub">O pulso das ruas.</p></div></div>
+        <div class="info-block"><div><span class="eyebrow">SEU PLACAR</span><div class="score"><div class="score-item"><strong id="wins">00</strong><span>Vitorias</span></div><div class="score-item"><strong id="losses">00</strong><span>Derrotas</span></div></div></div></div>
+        <div class="info-block"><div><span class="eyebrow">MELHOR SEQUENCIA</span><div class="record"><strong id="best-combo">00</strong><span>golpes em combo</span></div></div></div>
+      </section>
+    </main>
+    <footer><span>RUA 99 <b>/</b> CLUBE DE LUTA</span><span><i class="status-dot"></i><span id="footer-state">ARENA PRONTA</span></span></footer>
+  </div>
+  <script src="assets/matter.min.js"></script>
+  <script src="art.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
