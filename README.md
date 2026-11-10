@@ -22,9 +22,9 @@ Depois, abra o endereco exibido no terminal.
 
 | Acao | Teclado | Celular |
 | --- | --- | --- |
-| Mover para esquerda/direita | `A` / `D` ou setas | Botoes de seta |
-| Pular | `W`, seta para cima ou `Espaco` | Botao para cima |
-| Defender | Segurar `S` ou seta para baixo | Botao de escudo |
+| Mover em quatro direcoes | `W` / `A` / `S` / `D` ou setas | Botoes direcionais |
+| Pular | `Espaco` | — |
+| Defender | Segurar `Shift` | — |
 | Soco | `J` | Botao de soco |
 | Chute | `K` | Botao de chute |
 | Especial | `L`, com 60% de energia | Botao de especial |
@@ -33,7 +33,7 @@ Depois, abra o endereco exibido no terminal.
 | Som | `M` | Botao de volume |
 | Tela cheia | `F` | Botao de tela cheia |
 
-Os controles de ataque aceitam um novo toque ou pressionamento a cada golpe. Movimento e ataque podem ser usados ao mesmo tempo em telas de toque.
+Os controles de ataque aceitam um novo toque ou pressionamento a cada golpe. Movimento e ataque podem ser usados ao mesmo tempo em telas de toque. No teclado, `W`/`S` movem o lutador para cima/baixo na arena, `A`/`D` para os lados; `Espaco` pula e `Shift` defende.
 
 ## Regras da partida
 

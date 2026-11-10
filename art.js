@@ -203,26 +203,39 @@
   }
   function fighter(c, f, time, portrait = false) {
     const p = colors[f.id];
-    const feet = f.body.position.y + 82;
-    const moving = Math.abs(f.body.velocity.x) > 1 && f.grounded;
-    const bob = f.grounded ? Math.sin(time * 7 + (f.id === 'enemy' ? 1 : 0)) * .7 : 0;
-    const walk = moving ? Math.sin(time * 16) : 0;
-    const phase = f.attack ? f.attack.age / f.attack.duration : 0;
-    const reach = f.attack ? Math.sin(Math.min(1, phase / .65) * Math.PI) : 0;
+    const depth = Number.isFinite(f.depth) ? f.depth : 0;
+    const feet = f.body.position.y + 82 + depth;
+    const moving = f.grounded && (Math.abs(f.body.velocity.x) > 1 || Math.abs(f.laneVelocity || 0) > 10);
+    const gait = moving ? Math.sin(time * 12.5) : 0;
+    const breath = f.grounded && !moving ? Math.sin(time * 4.5 + (f.id === 'enemy' ? 1 : 0)) * .45 : 0;
+    const phase = f.attack ? Math.max(0, Math.min(1, f.attack.age / f.attack.duration)) : 0;
+    const ease = value => value * value * (3 - 2 * value);
+    const strike = !f.attack || phase < .2 ? 0 : phase < .58 ? ease((phase - .2) / .38) : 1 - ease((phase - .58) / .42);
+    const coil = f.attack && phase < .2 ? Math.sin(phase / .2 * Math.PI) : 0;
+    const kicking = f.attack?.type === 'kick';
+    const kickDrive = kicking ? strike : 0;
+    const lean = f.attack ? (kicking ? -kickDrive * 2.8 : strike * 1.25 - coil * 1.8) : moving ? gait * .65 : breath;
+    const dip = f.blocking ? 1.5 : kicking ? kickDrive * 1.3 : f.attack ? -strike * .45 : moving ? Math.max(0, -gait) * .35 : 0;
+    const airborne = !f.grounded;
     c.save();
-    c.translate(Math.round(f.body.position.x), Math.round(feet));
+    c.translate(f.body.position.x, feet);
     if (f.hp <= 0 && !portrait) { c.translate(0, -8); c.rotate(-f.facing * Math.PI / 2.7); }
     c.scale(f.facing * 3, 3);
-    c.translate(0, bob);
-    if (f.stun > 0) c.rotate(-.09);
+    c.translate(0, breath + (moving ? Math.abs(gait) * .5 : 0));
+    if (f.stun > 0) c.rotate(-.055);
     if (f.flash > 0) c.filter = 'brightness(1.75)';
     const block = f.blocking;
-    let frontKnee = [11 + walk * 5, -13];
-    let frontFoot = [17 + walk * 8, -2];
-    let backKnee = [-13 - walk * 4, -13];
-    let backFoot = [-21 - walk * 8, -2];
-    if (!f.grounded) { frontKnee = [16, -20]; frontFoot = [18, -13]; backKnee = [-9, -14]; backFoot = [-16, -10]; }
-    if (f.attack?.type === 'kick') { frontKnee = [12 + reach * 12, -16 - reach * 15]; frontFoot = [16 + reach * 31, -3 - reach * 31]; }
+    let frontKnee = [11 + gait * 4, -14 + Math.abs(gait) * .8 + dip];
+    let frontFoot = [17 + gait * 8, -2 - Math.max(0, gait) * 3 + dip];
+    let backKnee = [-13 - gait * 4, -14 + Math.abs(gait) * .8 + dip];
+    let backFoot = [-21 - gait * 8, -2 - Math.max(0, -gait) * 3 + dip];
+    if (airborne) { frontKnee = [16, -20]; frontFoot = [18, -13]; backKnee = [-9, -14]; backFoot = [-16, -10]; }
+    if (kicking) {
+      frontKnee = [12 + kickDrive * 11, -16 - kickDrive * 10];
+      frontFoot = [16 + kickDrive * 34, -3 - kickDrive * 31];
+      backKnee = [-13 - kickDrive * 2, -14 + kickDrive * 2];
+      backFoot = [-21 - kickDrive * 3, -2];
+    }
     limb(c, [-4,-26], backKnee, backFoot, p.pants, 8, p.pantsLight);
     rect(c, backFoot[0]-4, backFoot[1]-2, 13, 5, '#1e302b');
     rect(c, backFoot[0]-3, backFoot[1]-2, 10, 3, p.shoe);
@@ -230,8 +243,15 @@
     rect(c, frontFoot[0]-4, frontFoot[1]-2, 15, 5, '#1e302b');
     rect(c, frontFoot[0]-3, frontFoot[1]-2, 12, 3, p.shoe);
     rect(c, frontFoot[0]+2, frontFoot[1]-3, 3, 2, p.shadow);
-    let backElbow = [-16,-33], backHand = [-12,-44];
-    if (moving) { backElbow = [-18,-34]; backHand = [-19,-29]; }
+
+    // The upper body follows each step and counterbalances attacks instead of holding one pose.
+    c.save();
+    c.translate(lean, dip + (airborne ? -1 : 0));
+    let backElbow = [-16, -34 + gait * 4], backHand = [-12 - gait * 3, -44 + gait * 8];
+    if (moving) { backElbow = [-16 - gait * 2, -34 + gait * 5]; backHand = [-15 - gait * 5, -43 + gait * 10]; }
+    if (block) { backElbow = [-14, -39]; backHand = [-9, -52]; }
+    if (f.attack && !kicking) { backElbow = [-17 - strike * 3, -35 - strike * 5]; backHand = [-15 - strike * 6, -45 - strike * 7]; }
+    if (f.stun > 0) { backElbow = [-20, -31]; backHand = [-24, -39]; }
     limb(c, [-6,-43], backElbow, backHand, p.shadow, 7);
     rect(c, backHand[0]-3, backHand[1]-4, 7, 8, p.skin);
     polygon(c, [[-8,-48],[7,-48],[13,-37],[9,-24],[-8,-24],[-12,-37]], '#1e302b');
@@ -258,14 +278,37 @@
     rect(c, 4,-55,3,1,'#314035');
     rect(c, 5,-54,2,2,'#1b2925');
     rect(c, 6,-49,3,1,'#694d3e');
-    let elbow = [14,-35], hand = [19,-46];
-    if (block) { elbow = [16,-39]; hand = [12,-57]; }
-    if (f.attack && f.attack.type !== 'kick') { elbow = [12+reach*15,-36-reach*7]; hand = [19+reach*(f.attack.type === 'special' ? 29 : 24),-46+reach*3]; }
+    let elbow = [14 + gait * 2, -35], hand = [19 + gait * 4, -46 + gait * 3];
+    if (block) { elbow = [15,-40]; hand = [12,-57]; }
+    if (kicking) { elbow = [18,-39-kickDrive*4]; hand = [24,-48-kickDrive*9]; }
+    if (f.attack && !kicking) {
+      const extraReach = f.attack.type === 'special' ? 10 : 0;
+      elbow = [12 + strike * 11 - coil * 3, -36 - strike * 5];
+      hand = [19 + strike * (24 + extraReach) - coil * 6, -46 + strike * 2];
+    }
+    if (f.stun > 0) { elbow = [17,-32]; hand = [25,-39]; }
+    if (f.attack && strike > .25 && !portrait && !f.attack.hit) {
+      c.save();
+      c.globalAlpha = .34 * Math.sin(strike * Math.PI);
+      c.strokeStyle = f.attack.type === 'special' ? p.light : p.accent;
+      c.lineWidth = 1.2;
+      c.beginPath();
+      if (kicking) {
+        c.moveTo(frontFoot[0] - 12, frontFoot[1] - 5);
+        c.quadraticCurveTo(frontFoot[0] - 7, frontFoot[1] - 15, frontFoot[0] + 1, frontFoot[1] - 18);
+      } else {
+        c.moveTo(hand[0] - 15, hand[1] - 4);
+        c.quadraticCurveTo(hand[0] - 9, hand[1] - 9, hand[0] - 2, hand[1] - 7);
+      }
+      c.stroke();
+      c.restore();
+    }
     limb(c, [6,-43], elbow, hand, f.id === 'player' ? p.jacket : p.skin, 8, f.id === 'player' ? p.light : p.skinLight);
     rect(c, hand[0]-4,hand[1]-3,8,8,'#1e302b');
     rect(c, hand[0]-3,hand[1]-2,7,6,p.wrap);
     rect(c, hand[0],hand[1]-3,6,6,p.skinLight);
     rect(c, hand[0]+1,hand[1]-1,4,1,p.skin);
+    c.restore();
     c.restore();
   }
   function scene(c, time, camera, viewportWidth, viewportHeight) {
@@ -296,7 +339,7 @@
   function shadow(c, f) {
     const altitude = Math.max(0, 532 - f.body.position.y - 82);
     c.fillStyle = '#102a2165';
-    c.beginPath(); c.ellipse(f.body.position.x, 540, Math.max(22, 54-altitude*.14), 9, 0, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse(f.body.position.x, 540 + (f.depth || 0), Math.max(22, 54-altitude*.14), 9, 0, 0, Math.PI*2); c.fill();
   }
   window.ArenaArt = { scene, fighter, shadow, rect, line, polygon };
 })();

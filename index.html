@@ -85,7 +85,7 @@
     .control { display:inline-flex; align-items:center; justify-content:center; gap:9px; height:44px; min-width:46px; padding:0 15px; border:1px solid #464a3c; border-bottom:3px solid #464a3c; background:#2c3026; border-radius:4px; user-select:none; touch-action:none; font-size:12px; font-weight:600; }
     .control:hover { background:#373d2e; }
     .control.pressed,.control:active { background:#515c36; border-color:var(--lime); transform:translateY(1px); }
-    .control.guard { margin-left:8px; }
+    .movement [data-control="down"] img { transform:rotate(180deg); }
     .control.special { border-color:#758a44; color:var(--lime); background:#333d23; }
     .control.special img { filter:invert(85%) sepia(69%) saturate(412%) hue-rotate(25deg); }
     .control.special.ready { border-color:var(--lime); box-shadow:inset 0 0 16px #d5f76c18; }
@@ -130,7 +130,7 @@
       .fighter-meta strong { font-size:22px; } .fighter-meta small { font-size:8px; } .health { height:14px; border-width:2px; } .timer { font-size:32px; } .round-label { font-size:8px; } .fighter-bottom { font-size:8px; }
       .round-dots i { width:8px; height:8px; } .overlay { padding:30px 12px 75px; } .overlay h2 { font-size:48px; } .overlay-kicker { font-size:10px; }
       .primary { padding:12px 19px; font-size:12px; } .announcement { font-size:50px; } .corner-label { font-size:8px; bottom:12px; } .corner-label.left { left:12px; } .corner-label.right { right:12px; }
-      .control-deck { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'movement attacks' 'energy utility'; gap:12px 7px; padding:12px 9px; } .movement { grid-area:movement; gap:5px; } .control { width:38px; min-width:38px; height:43px; padding:0; } .control.guard { margin-left:0; }
+      .control-deck { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'movement attacks' 'energy utility'; gap:12px 7px; padding:12px 9px; } .movement { grid-area:movement; gap:5px; } .control { width:38px; min-width:38px; height:43px; padding:0; }
       .attack-controls { grid-area:attacks; gap:5px; } .attack-controls .control { width:43px; } .control span { display:none; } .utility { grid-area:utility; padding-left:0; margin-left:0; border:0; justify-content:flex-end; height:26px; }
       .utility .icon-button { height:26px; width:30px; } .energy-section { grid-area:energy; order:0; min-width:0; width:100%; margin:0; } .energy-label { font-size:8px; }
       .below { padding:21px 0; gap:19px 12px; grid-template-columns:1fr 1fr; } .info-block { gap:10px; } .info-block + .info-block { padding-left:15px; } .info-block:last-child { grid-column:1/-1; border-left:0; border-top:1px solid var(--line); padding:16px 0 0; }
@@ -188,10 +188,10 @@
         </div>
         <div class="control-deck" aria-label="Controles da luta">
           <div class="movement">
-            <button type="button" class="control" data-control="left" title="Esquerda (A ou seta esquerda)" aria-label="Mover para esquerda"><img src="assets/icons/arrow-left.svg" alt=""></button>
-            <button type="button" class="control" data-control="jump" title="Pular (W, seta para cima ou espaco)" aria-label="Pular"><img src="assets/icons/arrow-up.svg" alt=""></button>
-            <button type="button" class="control" data-control="right" title="Direita (D ou seta direita)" aria-label="Mover para direita"><img src="assets/icons/arrow-right.svg" alt=""></button>
-            <button type="button" class="control guard" data-control="block" title="Defender (S ou seta para baixo)" aria-label="Defender"><img src="assets/icons/shield.svg" alt=""></button>
+            <button type="button" class="control" data-control="left" title="Mover para esquerda (A ou seta esquerda)" aria-label="Mover para esquerda"><img src="assets/icons/arrow-left.svg" alt=""></button>
+            <button type="button" class="control" data-control="up" title="Mover para cima (W ou seta para cima)" aria-label="Mover para cima"><img src="assets/icons/arrow-up.svg" alt=""></button>
+            <button type="button" class="control" data-control="right" title="Mover para direita (D ou seta direita)" aria-label="Mover para direita"><img src="assets/icons/arrow-right.svg" alt=""></button>
+            <button type="button" class="control" data-control="down" title="Mover para baixo (S ou seta para baixo)" aria-label="Mover para baixo"><img src="assets/icons/arrow-down.svg" alt=""></button>
           </div>
           <div class="energy-section"><div class="energy-label"><span>ENERGIA</span><span id="energy-value">40%</span></div><div class="energy-meter" id="energy-meter" role="progressbar" aria-label="Energia do especial" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"><div class="energy-fill" id="energy-fill"></div></div></div>
           <div class="attack-controls">

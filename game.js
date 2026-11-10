@@ -5,6 +5,7 @@
   const arena = $('arena');
   const ctx = arena.getContext('2d', { alpha: false });
   const W = 1280, H = 650, FLOOR = 535, STEP = 1000 / 60;
+  const DEPTH_MIN = -24, DEPTH_MAX = 30, DEPTH_SPEED = 145;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
   const pad = value => String(value).padStart(2, '0');
@@ -40,7 +41,7 @@
       restitution: 0, label: id, collisionFilter: { category: 2, mask: 1 }
     });
     Composite.add(engine.world, body);
-    return { id, body, facing, hp: 100, energy: 40, rounds: 0, grounded: true, blocking: false, attack: null,
+    return { id, body, facing, depth: 0, laneVelocity: 0, hp: 100, energy: 40, rounds: 0, grounded: true, blocking: false, attack: null,
       stun: 0, flash: 0, cooldown: 0, combo: 0, comboTime: 0, aiTimer: .6, aiBlock: 0, knockback: 0 };
   }
   const player = makeFighter('player', 350, 1);
@@ -49,7 +50,7 @@
   const heldKeys = new Set();
   const heldPointers = new Map();
   const pending = new Set();
-  const keyActions = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'jump', ArrowUp: 'jump', Space: 'jump', KeyS: 'block', ArrowDown: 'block', KeyJ: 'punch', KeyK: 'kick', KeyL: 'special' };
+  const keyActions = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', Space: 'jump', ShiftLeft: 'block', ShiftRight: 'block', KeyJ: 'punch', KeyK: 'kick', KeyL: 'special' };
   const controlButtons = [...document.querySelectorAll('[data-control]')];
   let state = 'ready', resumeState = 'fighting', timer = 60, round = 1, countdown = 0, transition = 0;
   let camera = 0, viewWidth = W, visualTime = 0, accumulator = 0, previousTime = 0;
@@ -66,6 +67,7 @@
   function clearInput() {
     heldKeys.clear(); heldPointers.clear(); pending.clear(); syncControls();
     player.blocking = false;
+    for (const f of fighters) f.laneVelocity = 0;
   }
   function resize() {
     const bounds = arena.getBoundingClientRect();
@@ -149,9 +151,12 @@
       const sign = f.id === 'player' ? -1 : 1;
       Body.setPosition(f.body, { x: W / 2 + sign * viewWidth * .225, y: FLOOR - 82 });
       Body.setVelocity(f.body, { x: 0, y: 0 });
-      Object.assign(f, { facing: -sign, hp: 100, energy: 40, attack: null, blocking: false, grounded: true, stun: 0, flash: 0, cooldown: 0, combo: 0, comboTime: 0, aiTimer: .7, aiBlock: 0, knockback: 0 });
+      Object.assign(f, { facing: -sign, depth: 0, laneVelocity: 0, hp: 100, energy: 40, attack: null, blocking: false, grounded: true, stun: 0, flash: 0, cooldown: 0, combo: 0, comboTime: 0, aiTimer: .7, aiBlock: 0, knockback: 0 });
     }
     Engine.clear(engine);
+    // Engine.clear empties Matter's collision detector; mark the world dirty so
+    // the next Engine.update repopulates it with the floor, walls, and fighters.
+    Composite.setModified(engine.world, true, false, false);
     state = 'countdown'; countdown = 1.9;
     $('overlay').hidden = true;
     $('difficulty').disabled = true;
@@ -252,7 +257,7 @@
     if (!f.grounded || f.stun > 0 || f.blocking || f.attack) return;
     Body.setVelocity(f.body, { x: f.body.velocity.x, y: -13.1 });
     f.grounded = false;
-    burst(f.body.position.x, FLOOR, '#c0be92', 7, 1.2);
+    burst(f.body.position.x, FLOOR + f.depth, '#c0be92', 7, 1.2);
     tone(190, .12, 'triangle', .016, 420);
   }
   function burst(x, y, color, amount = 14, strength = 1) {
@@ -268,35 +273,45 @@
   function ai(dt) {
     const settings = levels[$('difficulty').value];
     const distance = Math.abs(player.body.position.x - enemy.body.position.x);
+    const depthDifference = player.depth - enemy.depth;
+    const aligned = Math.abs(depthDifference) < 28;
     enemy.aiTimer -= dt; enemy.aiBlock = Math.max(0, enemy.aiBlock - dt);
-    if (enemy.stun > 0 || enemy.attack) { enemy.blocking = false; return 0; }
+    if (enemy.stun > 0 || enemy.attack) { enemy.blocking = false; return { x: 0, depth: 0 }; }
     if (enemy.aiTimer <= 0) {
       enemy.aiTimer = settings.delay * (.7 + Math.random() * .8);
-      if (player.attack && distance < 215 && enemy.grounded && Math.random() < settings.block) enemy.aiBlock = .28 + Math.random()*.19;
-      else if (distance < 168 && Math.random() < settings.aggression) {
+      if (player.attack && distance < 215 && aligned && enemy.grounded && Math.random() < settings.block) enemy.aiBlock = .28 + Math.random()*.19;
+      else if (aligned && distance < 168 && Math.random() < settings.aggression) {
         enemy.blocking = false;
         const type = enemy.energy >= 60 && Math.random() < settings.special ? 'special' : distance > 118 || Math.random() > .58 ? 'kick' : 'punch';
         startAttack(enemy, type);
       } else if (distance > 200 && enemy.grounded && Math.random() < .08) jump(enemy);
     }
     enemy.blocking = enemy.aiBlock > 0 && enemy.grounded && !enemy.attack;
-    if (enemy.blocking || enemy.attack) return 0;
-    if (distance > 111) return enemy.facing * settings.speed;
-    if (distance < 83 && enemy.aiTimer > .14) return -enemy.facing * settings.speed * .6;
-    return 0;
+    if (enemy.blocking || enemy.attack) return { x: 0, depth: 0 };
+    let x = 0;
+    if (distance > 111) x = enemy.facing * settings.speed;
+    else if (distance < 83 && enemy.aiTimer > .14) x = -enemy.facing * settings.speed * .6;
+    const depth = Math.abs(depthDifference) > 7 ? Math.sign(depthDifference) * DEPTH_SPEED * .82 : 0;
+    return { x, depth };
   }
-  function updateFighter(f, movement, dt) {
+  function updateFighter(f, movement, depthMovement, dt) {
     f.stun = Math.max(0, f.stun-dt); f.flash = Math.max(0, f.flash-dt); f.cooldown = Math.max(0, f.cooldown-dt);
     f.comboTime = Math.max(0, f.comboTime-dt);
     if (!f.comboTime) f.combo = 0;
     f.energy = Math.min(100, f.energy + dt * 2.5);
     const wasGrounded = f.grounded;
     f.grounded = f.body.bounds.max.y >= FLOOR - 1.3 && f.body.velocity.y >= -.6;
-    if (!wasGrounded && f.grounded) burst(f.body.position.x, FLOOR, '#a9b383', 5, .7);
+    if (!wasGrounded && f.grounded) burst(f.body.position.x, FLOOR + f.depth, '#a9b383', 5, .7);
     let velocity = movement;
     if (f.blocking) velocity *= .2;
     if (f.attack) velocity *= .28;
     if (f.stun > 0) { velocity = f.knockback; f.knockback *= .87; }
+    let laneVelocity = depthMovement;
+    if (f.blocking) laneVelocity *= .2;
+    if (f.attack) laneVelocity *= .28;
+    if (f.stun > 0) laneVelocity = 0;
+    f.laneVelocity = laneVelocity;
+    f.depth = clamp(f.depth + laneVelocity * dt, DEPTH_MIN, DEPTH_MAX);
     Body.setVelocity(f.body, { x: velocity, y: f.body.velocity.y });
     if (f.attack) {
       f.attack.age += dt;
@@ -305,7 +320,7 @@
   }
   function attackConnects(attacker, defender) {
     const attack = attacker.attack;
-    if (!attack || attack.hit || attack.age < attack.active || attack.age > attack.end) return false;
+    if (!attack || attack.hit || attack.age < attack.active || attack.age > attack.end || Math.abs(attacker.depth - defender.depth) > 30) return false;
     const x = attacker.body.position.x;
     const feet = attacker.body.position.y + 82;
     const bounds = {
@@ -329,7 +344,7 @@
     defender.attack = null;
     if (!blocked) { defender.combo = 0; defender.comboTime = 0; }
     const hitX = defender.body.position.x - attacker.facing * 24;
-    const hitY = defender.body.position.y - 21;
+    const hitY = defender.body.position.y - 21 + defender.depth;
     burst(hitX, hitY, blocked ? '#b3dde3' : attack.type === 'special' ? '#e1ff81' : '#ffe2a1', blocked ? 10 : 22, attack.type === 'special' ? 1.7 : 1);
     if (blocked) { popup('DEFESA', hitX, hitY-55, '#c8e7e6', 18); tone(490,.09,'triangle',.04,240); }
     else {
@@ -343,6 +358,7 @@
     }
   }
   function finishRound() {
+    if (state !== 'fighting') return;
     state = 'roundEnd'; transition = 2.7; clearInput();
     let result;
     if (player.hp === enemy.hp) result = 'EMPATE';
@@ -353,7 +369,12 @@
     $('announcement').textContent = result;
     $('announcement').hidden = false;
     announce(winner);
-    for (const f of fighters) { f.attack = null; f.blocking = false; Body.setVelocity(f.body, { x: 0, y: f.body.velocity.y }); }
+    for (const f of fighters) {
+      f.attack = null; f.blocking = false; f.grounded = true;
+      f.laneVelocity = 0;
+      Body.setPosition(f.body, { x: f.body.position.x, y: FLOOR - 82 });
+      Body.setVelocity(f.body, { x: 0, y: 0 });
+    }
     tone(120,.45,'square',.035,40);
     updateHUD();
   }
@@ -409,10 +430,9 @@
     }
     if (state === 'roundEnd') {
       transition -= dt;
-      Engine.update(engine, STEP);
       if (transition <= 0) {
         if (player.rounds >= 2 || enemy.rounds >= 2) finishMatch();
-        else { if (player.hp !== enemy.hp) round++; beginRound(); }
+        else { round++; beginRound(); }
       }
       return;
     }
@@ -425,12 +445,13 @@
     for (const type of ['special', 'kick', 'punch']) if (pending.has(type)) { if (startAttack(player, type)) break; }
     pending.clear();
     const movement = (Number(isHeld('right'))-Number(isHeld('left'))) * 4.2;
+    const depthMovement = (Number(isHeld('down'))-Number(isHeld('up'))) * DEPTH_SPEED;
     const enemyMovement = ai(dt);
-    updateFighter(player, movement, dt); updateFighter(enemy, enemyMovement, dt);
+    updateFighter(player, movement, depthMovement, dt); updateFighter(enemy, enemyMovement.x, enemyMovement.depth, dt);
     Engine.update(engine, STEP);
     // Grounded fighters push each other; jumping permits a clean crossover.
     const dx = enemy.body.position.x-player.body.position.x;
-    if (Math.abs(dx) < 66 && Math.abs(enemy.body.position.y-player.body.position.y) < 115) {
+    if (Math.abs(dx) < 66 && Math.abs(enemy.body.position.y-player.body.position.y) < 115 && Math.abs(enemy.depth-player.depth) < 25) {
       const push = (66-Math.abs(dx))/2;
       const direction = dx >= 0 ? 1 : -1;
       Body.setPosition(player.body, { x: clamp(player.body.position.x-push*direction, camera+30, camera+viewWidth-30), y: player.body.position.y });
@@ -470,8 +491,9 @@
     ctx.setTransform(scale,0,0,scale,offsetX-camera*scale,offsetY);
     if (shake > 0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
     ArenaArt.scene(ctx,visualTime,camera,W,H);
-    for (const f of fighters) ArenaArt.shadow(ctx,f);
-    for (const f of fighters) {
+    const depthOrder = [...fighters].sort((a,b) => a.depth-b.depth);
+    for (const f of depthOrder) ArenaArt.shadow(ctx,f);
+    for (const f of depthOrder) {
       if (f.attack?.type === 'special') {
         ctx.save();
         ctx.globalAlpha = .16;
@@ -484,14 +506,14 @@
       ArenaArt.fighter(ctx,f,visualTime);
       if (f.blocking) {
         ctx.strokeStyle = '#bbe2dbb0'; ctx.lineWidth = 3;
-        const x = f.body.position.x + f.facing*45, y = f.body.position.y-19;
+        const x = f.body.position.x + f.facing*45, y = f.body.position.y-19+f.depth;
         ctx.beginPath(); ctx.ellipse(x,y,16,49,0,-Math.PI/2,Math.PI/2,f.facing===-1); ctx.stroke();
       }
     }
     if (state === 'ready') {
       ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
       for (const f of fighters) {
-        const x = f.body.position.x, y = f.body.position.y-135;
+        const x = f.body.position.x, y = f.body.position.y-135+f.depth;
         ctx.fillStyle = f.id === 'player' ? '#dcf88c' : '#ffb494';
         ctx.fillText(f.id === 'player' ? '01 / KAI' : 'CPU / REX', x,y);
         ArenaArt.polygon(ctx, [[x-4,y+9],[x+4,y+9],[x,y+13]],ctx.fillStyle);
@@ -530,7 +552,7 @@
   // Read-only snapshots make browser verification possible without changing match state.
   window.Rua99 = Object.freeze({
     snapshot: () => ({ state, round, timer, difficulty:$('difficulty').value, viewport:{width:viewWidth,camera}, stats:{...stats},
-      player:{hp:player.hp,energy:player.energy,x:player.body.position.x,y:player.body.position.y,blocking:player.blocking,grounded:player.grounded,attack:player.attack?.type || null,rounds:player.rounds},
-      enemy:{hp:enemy.hp,energy:enemy.energy,x:enemy.body.position.x,y:enemy.body.position.y,blocking:enemy.blocking,grounded:enemy.grounded,attack:enemy.attack?.type || null,rounds:enemy.rounds} })
+      player:{hp:player.hp,energy:player.energy,x:player.body.position.x,y:player.body.position.y,depth:player.depth,blocking:player.blocking,grounded:player.grounded,attack:player.attack?.type || null,rounds:player.rounds},
+      enemy:{hp:enemy.hp,energy:enemy.energy,x:enemy.body.position.x,y:enemy.body.position.y,depth:enemy.depth,blocking:enemy.blocking,grounded:enemy.grounded,attack:enemy.attack?.type || null,rounds:enemy.rounds} })
   });
 })();
